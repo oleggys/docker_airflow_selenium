@@ -1,0 +1,4 @@
+
+
+class ProxyFailedException(Exception):
+    pass
