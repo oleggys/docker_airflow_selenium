@@ -1,9 +1,11 @@
 import json
 import re
+from datetime import datetime
 from enum import IntEnum
 from typing import List, Dict, T
 from dataclasses import dataclass, asdict
 from bs4 import BeautifulSoup
+from string import Formatter
 
 
 class FlatType(IntEnum):
@@ -29,10 +31,19 @@ class Flat:
     max_floor_number: int = None
     address: str = None
     price: float = None
-    price_per_meter: int = None
 
     def to_json(self):
-        return json.dumps(asdict(self))
+        flat_data = asdict(self)
+        flat_data.pop('price', None)
+        flat_data.update({
+            'price_history': [
+                {
+                    'date': datetime.now().isoformat(),
+                    'value': int(self.price)
+                }
+            ]
+        })
+        return json.dumps(flat_data)
 
 
 class FlatParser:
@@ -76,7 +87,7 @@ class FlatParser:
         type_str = search_object.group(0)
         return flat_types[type_str]
 
-    def _get_square_from_text(self, text) -> float:
+    def _get_square_from_text(self, text: str) -> float:
         square_regex = r'(\d+[,.]?\d*)\s+м'
         square_value = re.search(square_regex, text)
         if not square_regex:
@@ -117,9 +128,6 @@ class FlatParser:
         price = self._get_price_from_text(item.text)
         return price
 
-    def get_price_per_meter(self, price, square):
-        return int(price / square)
-
     def get_address(self):
         item = self.soup.find('div', {'class': re.compile('\w*--labels--\w*')})
         if item is None:
@@ -137,3 +145,19 @@ class FlatParser:
         id = href.split('/')[-2]
         return id
 
+
+
+class Format(Formatter):
+    PLURALS = {'has' : 'have'}
+    def __init__(self):
+        super().__init__()
+
+    def get_value(self, key, args, kwds):
+        if isinstance(key, str):
+            try:
+                return kwds[key]
+            except KeyError:
+                if kwds.get('number', 1) == 1:
+                    return key
+                return self.PLURALS[key]
+        return super().get_value(key, args, kwds)

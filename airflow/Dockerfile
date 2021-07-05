@@ -1,6 +1,7 @@
-FROM apache/airflow:2.0.2-python3.7
+FROM apache/airflow:2.1.0-python3.7
 USER airflow
 RUN pip install 'apache-airflow[celery]'
+RUN pip install 'apache-airflow-providers-apache-spark'
 RUN pip install 'apache-airflow-providers-mongo'
 RUN pip install 'pymongo'
 RUN pip install 'fake_useragent'

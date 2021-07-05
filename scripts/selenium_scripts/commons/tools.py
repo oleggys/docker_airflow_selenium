@@ -1,15 +1,14 @@
 import re
-import time
 from bs4 import BeautifulSoup
 
-from selenium_scripts.commons.classes import FlatParser, Flat
+from scripts.selenium_scripts.commons.classes import FlatParser, Flat
 
 
 def get_soup_body(driver, url: str):
     driver.get(url)
-    time.sleep(10)
     soup = BeautifulSoup(driver.page_source, 'lxml')
-    driver.close()
+    if len(driver.window_handles) != 1:
+        driver.close()
     return soup
 
 
@@ -22,7 +21,6 @@ def parse_flat_data(soup) -> str:
     address = parser.get_address()
     price = parser.get_price()
     floor_number, max_floor_number = parser.get_floor_and_max_floor_numbers()
-    price_per_meter = parser.get_price_per_meter(price, square)
     flat = Flat(
         id=id,
         link=link,
@@ -31,7 +29,6 @@ def parse_flat_data(soup) -> str:
         floor=floor_number,
         max_floor_number=max_floor_number,
         price=price,
-        price_per_meter=price_per_meter,
         address=address,
     )
     return flat.to_json()
@@ -45,11 +42,13 @@ def get_items(soup: BeautifulSoup):
 def get_max_page_number(soup: BeautifulSoup):
     paginator = soup.find('div', {'data-name': 'Pagination'})
     if paginator is None:
-        return None
+        return 1
     items = paginator.find_all('li', {'class': re.compile('\w*--list-item--\w*')})
     if items is []:
-        return 0
+        return 1
     numbers = [int(item.text) for item in items if item.text != '..']
+    if numbers is []:
+        return 1
     return max(numbers)
 
 
@@ -60,3 +59,16 @@ def check_available(soup: BeautifulSoup):
     if item is None:
         return True
     return False
+
+def can_find_results(soup: BeautifulSoup):
+    banner = soup.find('aside', {'data-name': 'PreInfiniteBanner'})
+    if banner is None:
+        return True
+    return False
+
+def has_numbers(text):
+    regex = r'(\d+)'
+    value = re.search(regex, text)
+    if not value:
+        return False
+    return True
